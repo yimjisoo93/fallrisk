@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>낙상위험도 평가툴</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'Apple SD Gothic Neo', sans-serif; background: #f2f2f7; color: #1c1c1e; font-size: 15px; -webkit-text-size-adjust: 100%; }
+
+.topbar { background: #fff; border-bottom: 1px solid #ddd; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.topbar h1 { font-size: 17px; font-weight: 700; }
+.tbadge { font-size: 12px; background: #e8f0fe; color: #1a56db; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+
+.tabs { display: flex; background: #fff; border-bottom: 1px solid #ddd; }
+.tabBtn { flex: 1; padding: 12px 2px; font-size: 13px; text-align: center; color: #888; background: none; border: none; border-bottom: 2px solid transparent; font-family: inherit; cursor: pointer; }
+.tabBtn.on { color: #1a56db; border-bottom-color: #1a56db; font-weight: 700; }
+
+.wrap { padding: 12px 14px; max-width: 720px; margin: 0 auto; }
+.card { background: #fff; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; border: 1px solid #e5e5ea; }
+.ctitle { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+.frow { display: flex; gap: 10px; margin-bottom: 10px; }
+.frow > * { flex: 1; min-width: 0; }
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.fg label { font-size: 12px; color: #666; font-weight: 600; }
+.fg input, .fg select { font-size: 15px; padding: 10px 12px; border-radius: 8px; border: 1px solid #ddd; background: #fafafa; color: #1c1c1e; width: 100%; font-family: inherit; -webkit-appearance: none; }
+.idbox { background: #eef2ff; border: 1px solid #b8caff; border-radius: 8px; padding: 10px 12px; font-size: 17px; font-weight: 700; color: #1a56db; }
+.plabel { font-size: 12px; color: #888; margin-bottom: 4px; }
+.pbar { height: 6px; background: #e5e5ea; border-radius: 3px; margin-bottom: 10px; overflow: hidden; }
+.pfill { height: 100%; border-radius: 3px; background: #34c759; width: 0%; transition: width 0.3s; }
+.sechdr { font-size: 12px; font-weight: 700; color: #888; letter-spacing: 0.5px; padding: 14px 0 8px; border-bottom: 1px solid #e5e5ea; margin-bottom: 10px; }
+
+/* 문항 카드 */
+.qcard { background: #fff; border: 1px solid #e5e5ea; border-radius: 10px; padding: 14px; margin-bottom: 8px; }
+.qnum { font-size: 11px; font-weight: 700; color: #aaa; margin-bottom: 4px; }
+.qtext { font-size: 14px; font-weight: 600; line-height: 1.45; margin-bottom: 10px; }
+
+/* 정의 토글 - checkbox 방식 */
+.def-toggle { display: none; }
+.def-label { display: inline-block; font-size: 12px; color: #1a56db; background: #e8f0fe; border-radius: 6px; padding: 5px 10px; margin-bottom: 8px; cursor: pointer; user-select: none; -webkit-user-select: none; }
+.def-body { display: none; font-size: 11px; color: #555; line-height: 1.6; background: #f9f9f9; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+.def-toggle:checked ~ .def-body { display: block; }
+.def-toggle:checked ~ .def-label,
+.def-label:has(~ .def-toggle:checked) { display: none; } /* fallback은 JS로 */
+
+/* radio 버튼 방식 */
+.radio-group { display: flex; gap: 8px; }
+.radio-group input[type="radio"] { display: none; }
+.radio-group label {
+  flex: 1; padding: 11px 4px; font-size: 13px; font-weight: 600;
+  border-radius: 8px; border: 1.5px solid #ddd;
+  background: #f2f2f7; color: #555;
+  text-align: center; cursor: pointer;
+  display: block;
+  user-select: none; -webkit-user-select: none;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+.radio-group input[type="radio"].r-yes:checked ~ label.l-yes,
+.radio-group label.l-yes:has(~ input[type="radio"].r-yes:checked) { background: #d4f0db; border-color: #34c759; color: #1a5c2e; }
+
+/* iOS Safari에서 :has() 미지원 대비 - JS로 처리 */
+input[type="radio"].r-yes:checked + label { background: #d4f0db; border-color: #34c759; color: #1a5c2e; }
+input[type="radio"].r-no:checked + label  { background: #fde8e8; border-color: #ff3b30; color: #a52b2b; }
+input[type="radio"].r-na:checked + label  { background: #e5e5ea; border-color: #aaa;     color: #444; }
+
+.scgrid { display: flex; gap: 8px; margin: 8px 0 12px; }
+.sccell { flex: 1; background: #f9f9f9; border-radius: 8px; padding: 10px 4px; text-align: center; border: 1px solid #e5e5ea; }
+.scnum { font-size: 22px; font-weight: 700; }
+.scnum.g { color: #1a5c2e; } .scnum.r { color: #a52b2b; } .scnum.b { color: #1a56db; }
+.sclbl { font-size: 10px; color: #888; margin-top: 2px; }
+
+.savebtn { width: 100%; padding: 15px; font-size: 16px; font-weight: 700; border-radius: 10px; border: none; background: #1a56db; color: #fff; cursor: pointer; margin-top: 10px; font-family: inherit; display: block; }
+.resetbtn { width: 100%; padding: 12px; font-size: 14px; border-radius: 10px; border: 1px solid #ddd; background: #fff; color: #666; cursor: pointer; margin-top: 8px; font-family: inherit; display: block; }
+.memoarea { width: 100%; font-size: 14px; padding: 10px 12px; border-radius: 8px; border: 1px solid #ddd; background: #fafafa; color: #1c1c1e; font-family: inherit; resize: vertical; display: block; }
+
+.toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #1a5c2e; color: #fff; padding: 12px 24px; border-radius: 24px; font-size: 14px; font-weight: 700; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; white-space: nowrap; }
+.toast.show { opacity: 1; }
+
+.litem { background: #fff; border: 1px solid #e5e5ea; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.lname { font-size: 14px; font-weight: 700; }
+.lmeta { font-size: 11px; color: #888; margin-top: 3px; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 700; margin-left: 6px; }
+.bpre { background: #e8f0fe; color: #1a56db; }
+.bpost { background: #d4f0db; color: #1a5c2e; }
+.lload { font-size: 12px; color: #1a56db; background: #e8f0fe; border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.ldel  { font-size: 12px; color: #aaa; background: none; border: none; cursor: pointer; padding: 5px; font-family: inherit; }
+.csvbtn { width: 100%; padding: 13px; font-size: 14px; font-weight: 700; border-radius: 10px; border: 2px solid #1a56db; background: #fff; color: #1a56db; cursor: pointer; margin-bottom: 12px; font-family: inherit; display: block; }
+.ccard { background: #fff; border: 1px solid #e5e5ea; border-radius: 10px; padding: 14px; margin-bottom: 8px; }
+.cname { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 8px; }
+.crow { display: flex; align-items: center; gap: 10px; }
+.cpct { font-size: 22px; font-weight: 700; }
+.cdiff { font-size: 15px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.dup { background: #d4f0db; color: #1a5c2e; }
+.ddn { background: #fde8e8; color: #a52b2b; }
+.deq { background: #e5e5ea; color: #666; }
+.csub { font-size: 11px; color: #aaa; margin-top: 5px; }
+.empty { text-align: center; color: #aaa; font-size: 14px; padding: 40px 0; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>낙상위험도 평가</h1>
+  <span class="tbadge" id="tbadge">0건 저장</span>
+</div>
+<div class="tabs">
+  <button class="tabBtn on" id="tab0">평가 입력</button>
+  <button class="tabBtn" id="tab1">저장 목록</button>
+  <button class="tabBtn" id="tab2">사전·사후 비교</button>
+</div>
+
+<div class="wrap">
+<div id="pane0">
+  <div class="card">
+    <div class="ctitle">기본 정보</div>
+    <div class="frow">
+      <div class="fg"><label>가구 ID (자동)</label><div class="idbox" id="idbox">001</div></div>
+      <div class="fg"><label>평가 시점</label><select id="timing"><option value="사전">사전</option><option value="사후">사후</option></select></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label>대상자 이름</label><input type="text" id="hname" placeholder="홍길동" autocomplete="off"></div>
+      <div class="fg"><label>평가자</label><input type="text" id="evaluator" placeholder="평가자 이름" autocomplete="off"></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label>나이</label><input type="number" id="age" placeholder="75"></div>
+      <div class="fg"><label>성별</label><select id="gender"><option value="여">여</option><option value="남">남</option></select></div>
+    </div>
+  </div>
+
+  <div class="plabel" id="plabel">0 / 25 문항 응답됨</div>
+  <div class="pbar"><div class="pfill" id="pfill"></div></div>
+
+  <div class="sechdr">실내 환경</div>
+  <div class="qcard" id="qcard0">
+    <div class="qnum">Q1</div>
+    <div class="qtext">모든 통로가 전선과 잡동사니들로 가로막혀 있지 않은가?</div>
+    <input type="checkbox" class="def-toggle" id="dt0">
+    <label class="def-label" for="dt0" id="dlb0">정의 보기 ▾</label>
+    <div class="def-body" id="db0">지나가는 통로에 전선과 잡동사니들(박스, 신문 등)이 없다. 문과 통로를 가로막는 가구나 물건들이 없어야 한다. 문턱이 없어야 한다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry0" name="q0" value="예" onchange="onAns(0,'예')">
+      <label for="ry0">예</label>
+      <input type="radio" class="r-no" id="rn0" name="q0" value="아니오" onchange="onAns(0,'아니오')">
+      <label for="rn0">아니오</label>
+      <input type="radio" class="r-na" id="rk0" name="q0" value="적용안됨" onchange="onAns(0,'적용안됨')">
+      <label for="rk0">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard1">
+    <div class="qnum">Q2</div>
+    <div class="qtext">바닥에 깔려 있는 것이 상태가 좋은가?</div>
+    <input type="checkbox" class="def-toggle" id="dt1">
+    <label class="def-label" for="dt1" id="dlb1">정의 보기 ▾</label>
+    <div class="def-body" id="db1">카펫/매트가 평평하게 깔려 있고, 찢어진 부분은 없으며, 올이 풀린 부분이 없다. 바닥에 깨진 타일이 없다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry1" name="q1" value="예" onchange="onAns(1,'예')">
+      <label for="ry1">예</label>
+      <input type="radio" class="r-no" id="rn1" name="q1" value="아니오" onchange="onAns(1,'아니오')">
+      <label for="rn1">아니오</label>
+      <input type="radio" class="r-na" id="rk1" name="q1" value="적용안됨" onchange="onAns(1,'적용안됨')">
+      <label for="rk1">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard2">
+    <div class="qnum">Q3</div>
+    <div class="qtext">바닥이 미끄럼방지(non-slip)로 되어 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt2">
+    <label class="def-label" for="dt2" id="dlb2">정의 보기 ▾</label>
+    <div class="def-body" id="db2">장판이나 타일이 주방, 화장실, 세탁실의 바닥재로 사용된 경우 '아니요'로 채점. 주방, 화장실, 세탁실 등에 미끄럼방지 바닥재가 사용된 경우에만 '예'로 채점.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry2" name="q2" value="예" onchange="onAns(2,'예')">
+      <label for="ry2">예</label>
+      <input type="radio" class="r-no" id="rn2" name="q2" value="아니오" onchange="onAns(2,'아니오')">
+      <label for="rn2">아니오</label>
+      <input type="radio" class="r-na" id="rk2" name="q2" value="적용안됨" onchange="onAns(2,'적용안됨')">
+      <label for="rk2">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard3">
+    <div class="qnum">Q4</div>
+    <div class="qtext">매트가 바닥에 안전하게 고정되어 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt3">
+    <label class="def-label" for="dt3" id="dlb3">정의 보기 ▾</label>
+    <div class="def-body" id="db3">바닥에 깔린 매트 뒷면이 미끄럼방지로 되어있거나, 매트가 바닥에 테이프나 못으로 고정되어 있다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry3" name="q3" value="예" onchange="onAns(3,'예')">
+      <label for="ry3">예</label>
+      <input type="radio" class="r-no" id="rn3" name="q3" value="아니오" onchange="onAns(3,'아니오')">
+      <label for="rn3">아니오</label>
+      <input type="radio" class="r-na" id="rk3" name="q3" value="적용안됨" onchange="onAns(3,'적용안됨')">
+      <label for="rk3">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard4">
+    <div class="qnum">Q5</div>
+    <div class="qtext">침대에서 쉽고 안전하게 눕고 일어설 수 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt4">
+    <label class="def-label" for="dt4" id="dlb4">정의 보기 ▾</label>
+    <div class="def-body" id="db4">침대는 높이가 적절하고 견고해야 한다. 침대 옆의 가구에 의지하지 않은 채 쉽게 일어날 수 있어야 한다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry4" name="q4" value="예" onchange="onAns(4,'예')">
+      <label for="ry4">예</label>
+      <input type="radio" class="r-no" id="rn4" name="q4" value="아니오" onchange="onAns(4,'아니오')">
+      <label for="rn4">아니오</label>
+      <input type="radio" class="r-na" id="rk4" name="q4" value="적용안됨" onchange="onAns(4,'적용안됨')">
+      <label for="rk4">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard5">
+    <div class="qnum">Q6</div>
+    <div class="qtext">거실 소파에서 쉽고 안전하게 일어날 수 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt5">
+    <label class="def-label" for="dt5" id="dlb5">정의 보기 ▾</label>
+    <div class="def-body" id="db5">소파의 높이가 적절하고, 일어서고 앉을 때 잡고 지지할 수 있는 팔걸이가 있어야 한다. 소파는 너무 폭신폭신하거나 깊으면 안 된다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry5" name="q5" value="예" onchange="onAns(5,'예')">
+      <label for="ry5">예</label>
+      <input type="radio" class="r-no" id="rn5" name="q5" value="아니오" onchange="onAns(5,'아니오')">
+      <label for="rn5">아니오</label>
+      <input type="radio" class="r-na" id="rk5" name="q5" value="적용안됨" onchange="onAns(5,'적용안됨')">
+      <label for="rk5">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard6">
+    <div class="qnum">Q7</div>
+    <div class="qtext">집안의 조명이 잘 보일 만큼 밝은가?</div>
+    <input type="checkbox" class="def-toggle" id="dt6">
+    <label class="def-label" for="dt6" id="dlb6">정의 보기 ▾</label>
+    <div class="def-body" id="db6">각 공간의 전구 밝기는 75와트 이상 되거나 형광등이어야 한다. 방을 가로질러 그림자가 드리우면 안 된다. 너무 밝아서 눈이 부시면 안 된다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry6" name="q6" value="예" onchange="onAns(6,'예')">
+      <label for="ry6">예</label>
+      <input type="radio" class="r-no" id="rn6" name="q6" value="아니오" onchange="onAns(6,'아니오')">
+      <label for="rn6">아니오</label>
+      <input type="radio" class="r-na" id="rk6" name="q6" value="적용안됨" onchange="onAns(6,'적용안됨')">
+      <label for="rk6">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard7">
+    <div class="qnum">Q8</div>
+    <div class="qtext">침대에서 쉽게 조명 스위치를 켜고 끌 수 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt7">
+    <label class="def-label" for="dt7" id="dlb7">정의 보기 ▾</label>
+    <div class="def-body" id="db7">밤에 침대 밖으로 나가지 않아도 불을 켤 수 있다. 침대 곁에 손전등이나 램프가 있거나 화장실을 가는데 적절한 야간 조명이 켜있다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry7" name="q7" value="예" onchange="onAns(7,'예')">
+      <label for="ry7">예</label>
+      <input type="radio" class="r-no" id="rn7" name="q7" value="아니오" onchange="onAns(7,'아니오')">
+      <label for="rn7">아니오</label>
+      <input type="radio" class="r-na" id="rk7" name="q7" value="적용안됨" onchange="onAns(7,'적용안됨')">
+      <label for="rk7">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard8">
+    <div class="qnum">Q9</div>
+    <div class="qtext">야간에 바깥의 모든 통로, 계단, 입구 등에 조명이 잘 비춰져 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt8">
+    <label class="def-label" for="dt8" id="dlb8">정의 보기 ▾</label>
+    <div class="def-body" id="db8">집의 뒷문과 현관문에 조명이 설치되어 있고 전구 밝기는 최소 75와트 이상이다. 로비를 포함한 복도에도 조명이 설치되어 있다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry8" name="q8" value="예" onchange="onAns(8,'예')">
+      <label for="ry8">예</label>
+      <input type="radio" class="r-no" id="rn8" name="q8" value="아니오" onchange="onAns(8,'아니오')">
+      <label for="rn8">아니오</label>
+      <input type="radio" class="r-na" id="rk8" name="q8" value="적용안됨" onchange="onAns(8,'적용안됨')">
+      <label for="rk8">적용안됨</label>
+    </div>
+  </div>
+  <div class="sechdr">욕실 / 화장실</div>
+  <div class="qcard" id="qcard9">
+    <div class="qnum">Q10</div>
+    <div class="qtext">화장실 변기에서 쉽고 안전하게 앉고 일어설 수 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt9">
+    <label class="def-label" for="dt9" id="dlb9">정의 보기 ▾</label>
+    <div class="def-body" id="db9">변기는 높이가 적당하고, 필요한 경우 변기 옆에 손잡이를 설치하고, 일어설 때 세면대/수건걸이/화장지 거치대 등을 잡지 않는다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry9" name="q9" value="예" onchange="onAns(9,'예')">
+      <label for="ry9">예</label>
+      <input type="radio" class="r-no" id="rn9" name="q9" value="아니오" onchange="onAns(9,'아니오')">
+      <label for="rn9">아니오</label>
+      <input type="radio" class="r-na" id="rk9" name="q9" value="적용안됨" onchange="onAns(9,'적용안됨')">
+      <label for="rk9">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard10">
+    <div class="qnum">Q11</div>
+    <div class="qtext">욕조에 쉽고 안전하게 들어가고 나올 수 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt10">
+    <label class="def-label" for="dt10" id="dlb10">정의 보기 ▾</label>
+    <div class="def-body" id="db10">욕조의 가장자리를 위험하지 않게 넘어 다닐 수 있고 주변의 물건을 붙잡지 않고 욕조 안에서 앉거나 일어설 수 있다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry10" name="q10" value="예" onchange="onAns(10,'예')">
+      <label for="ry10">예</label>
+      <input type="radio" class="r-no" id="rn10" name="q10" value="아니오" onchange="onAns(10,'아니오')">
+      <label for="rn10">아니오</label>
+      <input type="radio" class="r-na" id="rk10" name="q10" value="적용안됨" onchange="onAns(10,'적용안됨')">
+      <label for="rk10">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard11">
+    <div class="qnum">Q12</div>
+    <div class="qtext">샤워부스에 쉽고 안전하게 들어가고 나올 수 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt11">
+    <label class="def-label" for="dt11" id="dlb11">정의 보기 ▾</label>
+    <div class="def-body" id="db11">지지대를 붙잡지 않고 위험 없이 샤워 부스 안을 드나들 수 있고, 부스의 문턱을 안전하게 넘을 수 있다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry11" name="q11" value="예" onchange="onAns(11,'예')">
+      <label for="ry11">예</label>
+      <input type="radio" class="r-no" id="rn11" name="q11" value="아니오" onchange="onAns(11,'아니오')">
+      <label for="rn11">아니오</label>
+      <input type="radio" class="r-na" id="rk11" name="q11" value="적용안됨" onchange="onAns(11,'적용안됨')">
+      <label for="rk11">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard12">
+    <div class="qnum">Q13</div>
+    <div class="qtext">욕조 및 샤워부스에 잡을 수 있는 견고한 손잡이 또는 안전바가 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt12">
+    <label class="def-label" for="dt12" id="dlb12">정의 보기 ▾</label>
+    <div class="def-body" id="db12">손잡이/안전바가 단단하게 고정되어 있고(수건걸이 아님) 안전바를 잡기 위해 몸을 구부릴 때 균형을 잃지 않을 거리에 위치해 있다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry12" name="q12" value="예" onchange="onAns(12,'예')">
+      <label for="ry12">예</label>
+      <input type="radio" class="r-no" id="rn12" name="q12" value="아니오" onchange="onAns(12,'아니오')">
+      <label for="rn12">아니오</label>
+      <input type="radio" class="r-na" id="rk12" name="q12" value="적용안됨" onchange="onAns(12,'적용안됨')">
+      <label for="rk12">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard13">
+    <div class="qnum">Q14</div>
+    <div class="qtext">욕조/욕실/샤워부스에 미끄럼 방지 매트를 사용하고 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt13">
+    <label class="def-label" for="dt13" id="dlb13">정의 보기 ▾</label>
+    <div class="def-body" id="db13">샤워부스나 욕조 바닥에 미끄럼 방지용 고무매트나 미끄럼방지 테이프 등이 설치되어 있다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry13" name="q13" value="예" onchange="onAns(13,'예')">
+      <label for="ry13">예</label>
+      <input type="radio" class="r-no" id="rn13" name="q13" value="아니오" onchange="onAns(13,'아니오')">
+      <label for="rn13">아니오</label>
+      <input type="radio" class="r-na" id="rk13" name="q13" value="적용안됨" onchange="onAns(13,'적용안됨')">
+      <label for="rk13">적용안됨</label>
+    </div>
+  </div>
+  <div class="sechdr">주방 / 계단</div>
+  <div class="qcard" id="qcard14">
+    <div class="qnum">Q15</div>
+    <div class="qtext">화장실은 침실과 가까운가?</div>
+    <input type="checkbox" class="def-toggle" id="dt14">
+    <label class="def-label" for="dt14" id="dlb14">정의 보기 ▾</label>
+    <div class="def-body" id="db14">화장실과 침실 사이에 2개 이상의 문을 지나지 않는다(침실 문 포함). 화장실을 갈 때 집 밖으로 나가지 않고, 문이 잠겨져 있지 않다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry14" name="q14" value="예" onchange="onAns(14,'예')">
+      <label for="ry14">예</label>
+      <input type="radio" class="r-no" id="rn14" name="q14" value="아니오" onchange="onAns(14,'아니오')">
+      <label for="rn14">아니오</label>
+      <input type="radio" class="r-na" id="rk14" name="q14" value="적용안됨" onchange="onAns(14,'적용안됨')">
+      <label for="rk14">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard15">
+    <div class="qnum">Q16</div>
+    <div class="qtext">주방에서 자주 쓰는 물건을 균형을 잃지 않고 쉽게 꺼낼 수 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt15">
+    <label class="def-label" for="dt15" id="dlb15">정의 보기 ▾</label>
+    <div class="def-body" id="db15">수납장은 어깨와 무릎 높이 사이에 위치한다. 물건을 꺼내기 위해서 의자 또는 발판을 사용하지 않는다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry15" name="q15" value="예" onchange="onAns(15,'예')">
+      <label for="ry15">예</label>
+      <input type="radio" class="r-no" id="rn15" name="q15" value="아니오" onchange="onAns(15,'아니오')">
+      <label for="rn15">아니오</label>
+      <input type="radio" class="r-na" id="rk15" name="q15" value="적용안됨" onchange="onAns(15,'적용안됨')">
+      <label for="rk15">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard16">
+    <div class="qnum">Q17</div>
+    <div class="qtext">부엌에서 식사 공간까지 음식을 쉽고 안전하게 가져갈 수 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt16">
+    <label class="def-label" for="dt16" id="dlb16">정의 보기 ▾</label>
+    <div class="def-body" id="db16">음식을 주로 먹는 공간까지 안전하게 음식을 가져가거나 혹은 카트를 이용해서 운반할 수 있다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry16" name="q16" value="예" onchange="onAns(16,'예')">
+      <label for="ry16">예</label>
+      <input type="radio" class="r-no" id="rn16" name="q16" value="아니오" onchange="onAns(16,'아니오')">
+      <label for="rn16">아니오</label>
+      <input type="radio" class="r-na" id="rk16" name="q16" value="적용안됨" onchange="onAns(16,'적용안됨')">
+      <label for="rk16">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard17">
+    <div class="qnum">Q18</div>
+    <div class="qtext">실내 계단 전체에 잡을 수 있는 단단한 안전손잡이가 설치되어 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt17">
+    <label class="def-label" for="dt17" id="dlb17">정의 보기 ▾</label>
+    <div class="def-body" id="db17">손잡이 레일은 손으로 쉽게 잡을 수 있고, 견고하게 고정되어 있으며, 계단의 전체에 걸쳐 설치되어 있다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry17" name="q17" value="예" onchange="onAns(17,'예')">
+      <label for="ry17">예</label>
+      <input type="radio" class="r-no" id="rn17" name="q17" value="아니오" onchange="onAns(17,'아니오')">
+      <label for="rn17">아니오</label>
+      <input type="radio" class="r-na" id="rk17" name="q17" value="적용안됨" onchange="onAns(17,'적용안됨')">
+      <label for="rk17">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard18">
+    <div class="qnum">Q19</div>
+    <div class="qtext">실외 계단 전체에 잡을 수 있는 단단한 안전손잡이가 설치되어 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt18">
+    <label class="def-label" for="dt18" id="dlb18">정의 보기 ▾</label>
+    <div class="def-body" id="db18">계단은 2개 이상의 단으로 이어진 층계. 손잡이 레일은 손으로 쉽게 잡을 수 있고, 견고하게 고정되어 있으며, 계단 전체에 걸쳐 설치되어 있다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry18" name="q18" value="예" onchange="onAns(18,'예')">
+      <label for="ry18">예</label>
+      <input type="radio" class="r-no" id="rn18" name="q18" value="아니오" onchange="onAns(18,'아니오')">
+      <label for="rn18">아니오</label>
+      <input type="radio" class="r-na" id="rk18" name="q18" value="적용안됨" onchange="onAns(18,'적용안됨')">
+      <label for="rk18">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard19">
+    <div class="qnum">Q20</div>
+    <div class="qtext">실내외에 존재하는 계단 모두 이용하기 쉽고 안전한가?</div>
+    <input type="checkbox" class="def-toggle" id="dt19">
+    <label class="def-label" for="dt19" id="dlb19">정의 보기 ▾</label>
+    <div class="def-body" id="db19">실내외 모두 계단이 너무 높지 않고, 발을 딛는 부분에 공간이 충분해야 한다. 계단을 오를 때 너무 힘들거나 숨이 차지 않아야 한다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry19" name="q19" value="예" onchange="onAns(19,'예')">
+      <label for="ry19">예</label>
+      <input type="radio" class="r-no" id="rn19" name="q19" value="아니오" onchange="onAns(19,'아니오')">
+      <label for="rn19">아니오</label>
+      <input type="radio" class="r-na" id="rk19" name="q19" value="적용안됨" onchange="onAns(19,'적용안됨')">
+      <label for="rk19">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard20">
+    <div class="qnum">Q21</div>
+    <div class="qtext">계단의 끝 가장자리 부분을 쉽게 식별할 수 있는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt20">
+    <label class="def-label" for="dt20" id="dlb20">정의 보기 ▾</label>
+    <div class="def-body" id="db20">계단의 끝 가장자리 부분을 모호하게 할 수 있는 패턴 바닥재, 타일, 페인팅 등을 사용하지 않았다. 계단이 잘 보이도록 조명이 충분하다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry20" name="q20" value="예" onchange="onAns(20,'예')">
+      <label for="ry20">예</label>
+      <input type="radio" class="r-no" id="rn20" name="q20" value="아니오" onchange="onAns(20,'아니오')">
+      <label for="rn20">아니오</label>
+      <input type="radio" class="r-na" id="rk20" name="q20" value="적용안됨" onchange="onAns(20,'적용안됨')">
+      <label for="rk20">적용안됨</label>
+    </div>
+  </div>
+  <div class="sechdr">출입 / 외부 / 기타</div>
+  <div class="qcard" id="qcard21">
+    <div class="qnum">Q22</div>
+    <div class="qtext">쉽고 안전하게 출입문 사용이 가능한가?</div>
+    <input type="checkbox" class="def-toggle" id="dt21">
+    <label class="def-label" for="dt21" id="dlb21">정의 보기 ▾</label>
+    <div class="def-body" id="db21">문을 잠그기 위해 굽히거나 과도하게 손을 뻗지 않아도 된다. 문을 열기 위한 충분한 공간이 있어 계단의 좁은 공간에서 균형을 잡을 필요가 없다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry21" name="q21" value="예" onchange="onAns(21,'예')">
+      <label for="ry21">예</label>
+      <input type="radio" class="r-no" id="rn21" name="q21" value="아니오" onchange="onAns(21,'아니오')">
+      <label for="rn21">아니오</label>
+      <input type="radio" class="r-na" id="rk21" name="q21" value="적용안됨" onchange="onAns(21,'적용안됨')">
+      <label for="rk21">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard22">
+    <div class="qnum">Q23</div>
+    <div class="qtext">집 주변 길이 잘 수리되어 있고, 방해물이 없는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt22">
+    <label class="def-label" for="dt22" id="dlb22">정의 보기 ▾</label>
+    <div class="def-body" id="db22">보도 블럭이나 도로가 깨지거나 소실되지 않았고, 무성하게 자란 잡초, 길 위에 드리운 나뭇가지, 정원 호스 등이 길을 방해하지 않아야 한다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry22" name="q22" value="예" onchange="onAns(22,'예')">
+      <label for="ry22">예</label>
+      <input type="radio" class="r-no" id="rn22" name="q22" value="아니오" onchange="onAns(22,'아니오')">
+      <label for="rn22">아니오</label>
+      <input type="radio" class="r-na" id="rk22" name="q22" value="적용안됨" onchange="onAns(22,'적용안됨')">
+      <label for="rk22">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard23">
+    <div class="qnum">Q24</div>
+    <div class="qtext">사이즈가 잘 맞는 슬리퍼와 신발을 착용하는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt23">
+    <label class="def-label" for="dt23" id="dlb23">정의 보기 ▾</label>
+    <div class="def-body" id="db23">자주 착용하는 신발이 굽이 낮고 미끄럼방지 밑창이 있어 안정적이고 잘 맞는다. 슬리퍼의 경우 뒤꿈치 지지가 있고 발을 잘 잡아준다. 신발을 신지 않으면 '아니오'로 채점.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry23" name="q23" value="예" onchange="onAns(23,'예')">
+      <label for="ry23">예</label>
+      <input type="radio" class="r-no" id="rn23" name="q23" value="아니오" onchange="onAns(23,'아니오')">
+      <label for="rn23">아니오</label>
+      <input type="radio" class="r-na" id="rk23" name="q23" value="적용안됨" onchange="onAns(23,'적용안됨')">
+      <label for="rk23">적용안됨</label>
+    </div>
+  </div>
+  <div class="qcard" id="qcard24">
+    <div class="qnum">Q25</div>
+    <div class="qtext">애완동물 돌볼 때 몸을 굽히거나 넘어질 위험이 없는가?</div>
+    <input type="checkbox" class="def-toggle" id="dt24">
+    <label class="def-label" for="dt24" id="dlb24">정의 보기 ▾</label>
+    <div class="def-body" id="db24">애완동물이 사람의 발밑에서 점프하거나 뜀뛸 때 발을 주지 않는다. 먹이를 주거나 배설물을 치울 때 몸을 아래로 굽히지 않는다.</div>
+    <div class="radio-group">
+      <input type="radio" class="r-yes" id="ry24" name="q24" value="예" onchange="onAns(24,'예')">
+      <label for="ry24">예</label>
+      <input type="radio" class="r-no" id="rn24" name="q24" value="아니오" onchange="onAns(24,'아니오')">
+      <label for="rn24">아니오</label>
+      <input type="radio" class="r-na" id="rk24" name="q24" value="적용안됨" onchange="onAns(24,'적용안됨')">
+      <label for="rk24">적용안됨</label>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px;">
+    <div class="ctitle">평가 결과</div>
+    <div class="scgrid">
+      <div class="sccell"><div class="scnum g" id="scY">0</div><div class="sclbl">예 (안전)</div></div>
+      <div class="sccell"><div class="scnum r" id="scN">0</div><div class="sclbl">아니오 (위험)</div></div>
+      <div class="sccell"><div class="scnum" id="scK">0</div><div class="sclbl">적용안됨</div></div>
+      <div class="sccell"><div class="scnum b" id="scP">0%</div><div class="sclbl">안전 비율</div></div>
+    </div>
+    <div class="fg" style="margin-bottom:0">
+      <label>특이사항 메모</label>
+      <textarea class="memoarea" id="memo" rows="3" placeholder="현장 특이사항, 개선 필요 사항 등"></textarea>
+    </div>
+    <button class="savebtn" id="savebtn">저장하고 다음 가구로</button>
+    <button class="resetbtn" id="resetbtn">초기화</button>
+  </div>
+</div>
+
+<div id="pane1" style="display:none">
+  <button class="csvbtn" id="csvbtn">CSV 내보내기 (전체 데이터)</button>
+  <div id="litems"><div class="empty">저장된 데이터가 없습니다.</div></div>
+</div>
+
+<div id="pane2" style="display:none">
+  <div id="citems"><div class="empty">사전·사후 모두 입력된 가구가 없습니다.</div></div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var ans = {};
+var editId = null;
+
+// 정의 토글 - checkbox 상태에 따라 label 텍스트 변경
+for(var i=0;i<25;i++){
+  (function(idx){
+    var cb = document.getElementById('dt'+idx);
+    var lb = document.getElementById('dlb'+idx);
+    if(cb && lb){
+      cb.addEventListener('change', function(){
+        lb.textContent = cb.checked ? '정의 닫기 ▴' : '정의 보기 ▾';
+      });
+    }
+  })(i);
+}
+
+function onAns(idx, val){
+  ans[idx] = val;
+  updateScore();
+}
+
+function updateScore(){
+  var y=0,n=0,k=0;
+  for(var i in ans){
+    if(ans[i]==='예') y++;
+    else if(ans[i]==='아니오') n++;
+    else k++;
+  }
+  var tot=y+n+k, pct=(y+n)>0?Math.round(y/(y+n)*100):0;
+  document.getElementById('scY').textContent=y;
+  document.getElementById('scN').textContent=n;
+  document.getElementById('scK').textContent=k;
+  document.getElementById('scP').textContent=pct+'%';
+  document.getElementById('plabel').textContent=tot+' / 25 문항 응답됨';
+  document.getElementById('pfill').style.width=Math.round(tot/25*100)+'%';
+}
+
+function getSaved(){ try{ return JSON.parse(localStorage.getItem('fr_v6')||'[]'); }catch(e){ return []; } }
+function putSaved(d){ localStorage.setItem('fr_v6', JSON.stringify(d)); }
+
+function getNextId(){
+  var d=getSaved(); if(!d.length) return '001';
+  var ids=d.map(function(x){ return parseInt(x.id); }).filter(function(n){ return !isNaN(n); });
+  if(!ids.length) return '001';
+  return String(Math.max.apply(null,ids)+1).padStart(3,'0');
+}
+
+function refreshIdBox(){
+  var el=document.getElementById('idbox');
+  if(editId){ el.textContent=editId+' (수정중)'; el.style.background='#fff8e1'; el.style.borderColor='#ffb74d'; el.style.color='#e65100'; }
+  else{ el.textContent=getNextId(); el.style.background='#eef2ff'; el.style.borderColor='#b8caff'; el.style.color='#1a56db'; }
+  document.getElementById('tbadge').textContent=getSaved().length+'건 저장';
+}
+
+function saveEval(){
+  var name=document.getElementById('hname').value.trim();
+  if(!name){ alert('대상자 이름을 입력해주세요.'); return; }
+  var timing=document.getElementById('timing').value;
+  var id=editId||getNextId();
+  var data=getSaved();
+  var ei=-1;
+  for(var i=0;i<data.length;i++){ if(data[i].id===id&&data[i].timing===timing){ ei=i; break; } }
+  if(!editId&&ei>=0){ if(!confirm('가구 '+id+'의 '+timing+' 데이터가 이미 있습니다. 덮어쓸까요?')) return; }
+  var y=0,n=0,k=0;
+  for(var i in ans){ if(ans[i]==='예')y++; else if(ans[i]==='아니오')n++; else k++; }
+  var pct=(y+n)>0?Math.round(y/(y+n)*100):0;
+  var rec={id:id,name:name,evaluator:document.getElementById('evaluator').value.trim(),timing:timing,age:document.getElementById('age').value.trim(),gender:document.getElementById('gender').value,answers:JSON.parse(JSON.stringify(ans)),yes:y,no:n,na:k,pct:pct,memo:document.getElementById('memo').value.trim(),date:new Date().toLocaleDateString('ko-KR'),ts:Date.now()};
+  if(ei>=0) data[ei]=rec; else data.push(rec);
+  putSaved(data);
+  showToast('가구 '+id+' ('+timing+') 저장 완료!');
+  editId=null; resetForm();
+}
+
+function resetForm(){
+  editId=null;
+  document.getElementById('hname').value='';
+  document.getElementById('evaluator').value='';
+  document.getElementById('age').value='';
+  document.getElementById('memo').value='';
+  document.getElementById('timing').value='사전';
+  document.getElementById('gender').value='여';
+  ans={};
+  for(var i=0;i<25;i++){
+    var ry=document.getElementById('ry'+i);
+    var rn=document.getElementById('rn'+i);
+    var rk=document.getElementById('rk'+i);
+    if(ry) ry.checked=false;
+    if(rn) rn.checked=false;
+    if(rk) rk.checked=false;
+    var cb=document.getElementById('dt'+i);
+    var lb=document.getElementById('dlb'+i);
+    if(cb){ cb.checked=false; }
+    if(lb){ lb.textContent='정의 보기 ▾'; }
+    var db=document.getElementById('db'+i);
+    if(db) db.style.display='none';
+  }
+  updateScore(); 
+// 모든 버튼 이벤트를 addEventListener로 등록 (iOS Safari 호환)
+function addTap(id, fn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var fired = false;
+  el.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    if (fired) return;
+    fired = true;
+    setTimeout(function(){ fired = false; }, 500);
+    fn();
+  }, false);
+  el.addEventListener('click', function(e) {
+    if (fired) return;
+    fired = true;
+    setTimeout(function(){ fired = false; }, 500);
+    fn();
+  }, false);
+}
+
+addTap('tab0', function(){ showTab(0); });
+addTap('tab1', function(){ showTab(1); });
+addTap('tab2', function(){ showTab(2); });
+addTap('savebtn', function(){ saveEval(); });
+addTap('resetbtn', function(){ resetForm(); });
+addTap('csvbtn', function(){ exportCSV(); });
+
+refreshIdBox(); window.scrollTo(0,0);
+}
+
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show';
+  setTimeout(function(){ t.className='toast'; },2500);
+}
+
+function showTab(n){
+  for(var i=0;i<3;i++){
+    document.getElementById('pane'+i).style.display=i===n?'':'none';
+    var tb=document.getElementById('tab'+i);
+    tb.className='tabBtn'+(i===n?' on':'');
+  }
+  if(n===1) renderList();
+  if(n===2) renderCompare();
+}
+
+function renderList(){
+  var data=getSaved(); var el=document.getElementById('litems');
+  if(!data.length){ el.innerHTML='<div class="empty">저장된 데이터가 없습니다.</div>'; return; }
+  data.sort(function(a,b){ return a.id.localeCompare(b.id,'ko',{numeric:true})||(a.timing==='사전'?-1:1); });
+  var h='';
+  for(var i=0;i<data.length;i++){
+    var d=data[i];
+    h+='<div class="litem">'
+      +'<div><div class="lname">['+d.id+'] '+d.name+'<span class="badge '+(d.timing==='사전'?'bpre':'bpost')+'">'+d.timing+'</span></div>'
+      +'<div class="lmeta">'+d.date+' · 평가자: '+(d.evaluator||'-')+' · 안전 '+d.yes+'문항 ('+d.pct+'%) · 위험 '+d.no+'문항</div></div>'
+      +'<div style="display:flex;gap:6px;align-items:center;">'
+      +'<button class="lload" id="ll'+i+'">불러오기</button>'
+      +'<button class="ldel" id="ld'+i+'">삭제</button></div></div>';
+  }
+  el.innerHTML=h;
+  // 동적 버튼 이벤트 등록
+  for(var j=0;j<data.length;j++){
+    (function(idx){
+      addTap('ll'+idx, function(){ loadRec(idx); });
+      addTap('ld'+idx, function(){ delRec(idx); });
+    })(j);
+  }
+}
+
+function loadRec(si){
+  var data=getSaved();
+  data.sort(function(a,b){ return a.id.localeCompare(b.id,'ko',{numeric:true})||(a.timing==='사전'?-1:1); });
+  var d=data[si]; editId=d.id;
+  document.getElementById('hname').value=d.name;
+  document.getElementById('evaluator').value=d.evaluator||'';
+  document.getElementById('timing').value=d.timing;
+  document.getElementById('age').value=d.age||'';
+  document.getElementById('gender').value=d.gender||'여';
+  document.getElementById('memo').value=d.memo||'';
+  ans=JSON.parse(JSON.stringify(d.answers));
+  for(var i=0;i<25;i++){
+    var ry=document.getElementById('ry'+i), rn=document.getElementById('rn'+i), rk=document.getElementById('rk'+i);
+    if(ry) ry.checked=false;
+    if(rn) rn.checked=false;
+    if(rk) rk.checked=false;
+    if(ans[i]==='예'&&ry) ry.checked=true;
+    else if(ans[i]==='아니오'&&rn) rn.checked=true;
+    else if(ans[i]==='적용안됨'&&rk) rk.checked=true;
+  }
+  updateScore(); 
+// 모든 버튼 이벤트를 addEventListener로 등록 (iOS Safari 호환)
+function addTap(id, fn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var fired = false;
+  el.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    if (fired) return;
+    fired = true;
+    setTimeout(function(){ fired = false; }, 500);
+    fn();
+  }, false);
+  el.addEventListener('click', function(e) {
+    if (fired) return;
+    fired = true;
+    setTimeout(function(){ fired = false; }, 500);
+    fn();
+  }, false);
+}
+
+addTap('tab0', function(){ showTab(0); });
+addTap('tab1', function(){ showTab(1); });
+addTap('tab2', function(){ showTab(2); });
+addTap('savebtn', function(){ saveEval(); });
+addTap('resetbtn', function(){ resetForm(); });
+addTap('csvbtn', function(){ exportCSV(); });
+
+refreshIdBox(); showTab(0); window.scrollTo(0,0);
+}
+
+function delRec(si){
+  if(!confirm('삭제하시겠습니까?')) return;
+  var data=getSaved();
+  data.sort(function(a,b){ return a.id.localeCompare(b.id,'ko',{numeric:true})||(a.timing==='사전'?-1:1); });
+  data.splice(si,1); putSaved(data); renderList(); 
+// 모든 버튼 이벤트를 addEventListener로 등록 (iOS Safari 호환)
+function addTap(id, fn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var fired = false;
+  el.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    if (fired) return;
+    fired = true;
+    setTimeout(function(){ fired = false; }, 500);
+    fn();
+  }, false);
+  el.addEventListener('click', function(e) {
+    if (fired) return;
+    fired = true;
+    setTimeout(function(){ fired = false; }, 500);
+    fn();
+  }, false);
+}
+
+addTap('tab0', function(){ showTab(0); });
+addTap('tab1', function(){ showTab(1); });
+addTap('tab2', function(){ showTab(2); });
+addTap('savebtn', function(){ saveEval(); });
+addTap('resetbtn', function(){ resetForm(); });
+addTap('csvbtn', function(){ exportCSV(); });
+
+refreshIdBox();
+}
+
+function exportCSV(){
+  var data=getSaved();
+  if(!data.length){ alert('저장된 데이터가 없습니다.'); return; }
+  var qh=''; for(var i=1;i<=25;i++) qh+=',Q'+i;
+  var hdr='가구ID,이름,평가시점,평가자,나이,성별,예(안전),아니오(위험),적용안됨,안전비율,평가일,메모'+qh;
+  var rows=[];
+  for(var i=0;i<data.length;i++){
+    var d=data[i], qv='';
+    for(var j=0;j<25;j++) qv+=',"'+(d.answers[j]||'')+'"';
+    rows.push('"'+d.id+'","'+d.name+'","'+d.timing+'","'+(d.evaluator||'')+'","'+(d.age||'')+'","'+(d.gender||'')+'",'+d.yes+','+d.no+','+d.na+','+d.pct+'%,"'+d.date+'","'+(d.memo||'')+'"'+qv);
+  }
+  var blob=new Blob(['\uFEFF'+hdr+'\n'+rows.join('\n')],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url;
+  a.download='낙상위험도_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function renderCompare(){
+  var data=getSaved(); var el=document.getElementById('citems');
+  var ids=[];
+  for(var i=0;i<data.length;i++){ if(ids.indexOf(data[i].id)<0) ids.push(data[i].id); }
+  var paired=[];
+  for(var i=0;i<ids.length;i++){
+    var id=ids[i],hp=false,ho=false;
+    for(var j=0;j<data.length;j++){
+      if(data[j].id===id&&data[j].timing==='사전') hp=true;
+      if(data[j].id===id&&data[j].timing==='사후') ho=true;
+    }
+    if(hp&&ho) paired.push(id);
+  }
+  if(!paired.length){ el.innerHTML='<div class="empty">사전·사후 모두 입력된 가구가 없습니다.</div>'; return; }
+  paired.sort(function(a,b){ return a.localeCompare(b,'ko',{numeric:true}); });
+  var tp=0,to=0,h='';
+  for(var i=0;i<paired.length;i++){
+    var id=paired[i],pre=null,post=null;
+    for(var j=0;j<data.length;j++){
+      if(data[j].id===id&&data[j].timing==='사전') pre=data[j];
+      if(data[j].id===id&&data[j].timing==='사후') post=data[j];
+    }
+    tp+=pre.pct; to+=post.pct;
+    var diff=post.pct-pre.pct,sign=diff>0?'+':'',dcls=diff>0?'dup':diff<0?'ddn':'deq';
+    var nd=pre.no-post.no;
+    h+='<div class="ccard"><div class="cname">['+id+'] '+pre.name+'</div>'
+      +'<div class="crow"><span class="cpct" style="color:#888">'+pre.pct+'%</span>'
+      +'<span style="font-size:18px;color:#aaa;margin:0 4px;">→</span>'
+      +'<span class="cpct">'+post.pct+'%</span>'
+      +'<span class="cdiff '+dcls+'">'+sign+diff+'%p</span></div>'
+      +'<div class="csub">위험 문항: '+pre.no+'개 → '+post.no+'개'+(nd>0?' (-'+nd+'개)':nd<0?' (+'+ -nd+'개)':'')+'</div></div>';
+  }
+  if(paired.length>1){
+    var ap=Math.round(tp/paired.length),ao=Math.round(to/paired.length),ad=ao-ap;
+    var adc=ad>0?'dup':ad<0?'ddn':'deq';
+    h='<div class="ccard" style="background:#f0f4ff;border-color:#b8caff;">'
+      +'<div class="cname" style="color:#1a56db">전체 평균 ('+paired.length+'가구)</div>'
+      +'<div class="crow"><span class="cpct" style="color:#888">'+ap+'%</span>'
+      +'<span style="font-size:18px;color:#aaa;margin:0 4px;">→</span>'
+      +'<span class="cpct">'+ao+'%</span>'
+      +'<span class="cdiff '+adc+'">'+(ad>=0?'+':'')+ad+'%p</span></div></div>'+h;
+  }
+  el.innerHTML=h;
+}
+
+
+// 모든 버튼 이벤트를 addEventListener로 등록 (iOS Safari 호환)
+function addTap(id, fn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var fired = false;
+  el.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    if (fired) return;
+    fired = true;
+    setTimeout(function(){ fired = false; }, 500);
+    fn();
+  }, false);
+  el.addEventListener('click', function(e) {
+    if (fired) return;
+    fired = true;
+    setTimeout(function(){ fired = false; }, 500);
+    fn();
+  }, false);
+}
+
+addTap('tab0', function(){ showTab(0); });
+addTap('tab1', function(){ showTab(1); });
+addTap('tab2', function(){ showTab(2); });
+addTap('savebtn', function(){ saveEval(); });
+addTap('resetbtn', function(){ resetForm(); });
+addTap('csvbtn', function(){ exportCSV(); });
+
+refreshIdBox();
+</script>
+</body>
+</html>
